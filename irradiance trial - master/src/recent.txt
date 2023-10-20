@@ -1,0 +1,87 @@
+#include <Arduino.h>
+// #include <LiquidCrystal_I2C.h> //Biblioteca I2C do LCD 16x2
+// LiquidCrystal_I2C lcd(0x27,16,2);  // Configurando o endereco do LCD 16x2 para 0x27
+
+int value1 = 0, value2 = 0;
+
+const int LED =  13;   
+const int Enable =  2;
+
+#define RXD2 16
+#define TXD2 17
+
+void setup() 
+{ 
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  Serial2.setTimeout(250);
+
+  pinMode(LED, OUTPUT);
+  pinMode(Enable, OUTPUT);
+  
+  digitalWrite(LED, LOW); 
+  
+  digitalWrite(Enable, HIGH);
+
+  // lcd.init();      
+  // lcd.backlight();
+}
+ 
+void loop() 
+{ 
+// Serial.println("asking slave1");
+  
+  Serial2.print("I");
+  Serial2.print("1");
+  Serial2.print("L");
+  Serial2.print("F");
+  Serial2.flush();
+  
+  digitalWrite(Enable, LOW);
+  
+  if(Serial2.find("i")) {
+    bool slave1 = Serial2.find("1");   
+    if(slave1 == true) {
+      value1 = Serial2.parseInt();
+      if(Serial2.read() == 'f' && slave1 == true) {
+        // if ()
+        Serial.println(value1);
+      }
+    }
+
+      // int slave1 = Serial2.parseInt();
+      
+      // if(Serial2.read() == 'f' && slave1 == 1)
+      // {
+      //   // lcd.setCursor(0,0);
+      //   // lcd.print("Escravo 1:      ");
+      //   // lcd.setCursor(11,0);
+      //   // lcd.print(value1);
+      //   digitalWrite(Enable, HIGH);
+      // }
+ }
+ delay(1000);
+
+  // Serial2.print("I");
+  // Serial2.print("2");
+  // Serial2.print("L");
+  // Serial2.print("F");
+  // Serial2.flush();
+  
+  // // digitalWrite(Enable, LOW);
+  
+  // if(Serial2.find("i"))
+  // {   
+  //     int slave2 = Serial2.parseInt();
+  //     value2 = Serial2.parseInt();
+      
+  //     if(Serial2.read() == 'f' && slave2 == 2)
+  //     {
+  //       // lcd.setCursor(0,1);
+  //       // lcd.print("Escravo 2:      ");
+  //       // lcd.setCursor(11,1);
+  //       // lcd.print(value2);
+  //     }
+  // }
+      // digitalWrite(Enable, HIGH);
+}

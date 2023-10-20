@@ -1,0 +1,106 @@
+#include <Arduino.h>
+#include <Wire.h>
+#include <INA226.h>
+#include <Adafruit_AHTX0.h>
+
+const int led =  2;
+
+// const int slaveNumber = 1;
+// const char* testCode = "t1";
+// const char* askCode = "a1";
+
+// const int slaveNumber = 2;
+// const char* testCode = "t2";
+// const char* askCode = "a2";
+
+const int slaveNumber = 3;
+const char* testCode = "t3";
+const char* askCode = "a3";
+
+#define RXD2 16
+#define TXD2 17
+
+INA226 ina(Wire);
+Adafruit_AHTX0 aht;
+
+const int numReadings = 10;
+
+int readings[numReadings];  // the readings from the analog input
+int readIndex = 0;          // the index of the current reading
+int total = 0;              // the running total
+int averageValue = 0;            // the average
+
+void setup() {
+  Serial.begin(9600);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  Wire.begin();
+
+  pinMode(led, OUTPUT);
+  digitalWrite(led, LOW);
+
+  if(! ina.begin()) {
+    Serial.println("INA226 Error");
+    while(1);
+  }
+  Serial.println("INA226 Initialized");
+
+  if (! aht.begin()) {
+    Serial.println("AHT10 Error");
+    while (1);
+  }
+  Serial.println("AHT10 Initialized");
+
+  ina.configure(INA226_AVERAGES_1, INA226_BUS_CONV_TIME_1100US, INA226_SHUNT_CONV_TIME_1100US, INA226_MODE_SHUNT_BUS_CONT);
+  ina.calibrate(0.01, 4);   // Calibrate INA226. Rshunt = 0.01 ohm, Max excepted current = 4A
+  ina.enableOverPowerLimitAlert();  // Enable Power Over-Limit Alert
+  ina.setPowerLimit(0.130);
+  ina.setAlertLatch(true);
+
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0;
+  }
+}
+
+void loop() {
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);
+
+  int busVoltage, busPower, shuntVoltage, shuntCurrent;
+
+  busVoltage = ina.readBusVoltage() * 1000000;
+  busPower = ina.readBusPower() * 1000000;
+  shuntVoltage = ina.readShuntVoltage() * 1000000;
+  shuntCurrent = ina.readShuntCurrent() * 1000000;
+
+  total = total - readings[readIndex];
+  readings[readIndex] = shuntCurrent;
+  total = total + readings[readIndex];
+  readIndex = readIndex + 1;
+  if (readIndex >= numReadings) {
+    readIndex = 0;
+  }
+
+  averageValue = total / numReadings;
+
+  digitalWrite(led,LOW);
+  while(Serial2.available()) {
+    String a = Serial2.readString();
+    Serial.println(a);
+    
+    if (a == testCode){
+      digitalWrite(led,HIGH);
+      String msg = "rt" + String(slaveNumber) + ";" + String(1);
+      Serial2.print(msg);
+      Serial.println("masuk test");
+    } else if (a == askCode) {
+      digitalWrite(led,HIGH);
+      String msg = "ra" + String(slaveNumber) + ";" + String(averageValue) + ";" + String(temp.temperature) + ";" + String(humidity.relative_humidity);
+      Serial2.print(msg);
+      Serial.println("masuk test");
+    }
+  }
+  delay(1000);
+  
+  Serial.print("Shunt Current = ");
+  Serial.println(averageValue);
+}

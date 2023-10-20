@@ -1,0 +1,861 @@
+#include <Arduino.h>
+#include <Wire.h>
+
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+#include <ArduinoJson.h>
+
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
+AsyncWebServer server(80);
+
+#include <Adafruit_ADS1X15.h>
+Adafruit_ADS1115 ads;
+
+// Define known network here
+//const char* KNOWN_SSID[] = {"Nokia Deny", "Rumah No 30", "Redmi Note 5", "Inneke Home", "GI_PATI", "INFORMATION CENTER", /*"Dasar",*/ "GI_PATI2", "GI_PATI3", "PLN_ULTG_REMBANG", "GI REMBANG"};
+//const char* KNOWN_PASSWORD[] = {"bismillah", "heavyduty", "gipati01", "inneke90", "gitopati", "9000000000", /*"liquidgas",*/ "", "", "rembang#123", "1234lima"};
+//const char* KNOWN_SSID[] = {"Nokia Deny", "Rumah No 30", "Redmi Note 5", "Inneke Home", "GI_PATI", /*"INFORMATION CENTER", "Dasar",*/ "GI_PATI2", "GI_PATI3", "PLN_ULTG_REMBANG", "GI REMBANG"};
+//const char* KNOWN_PASSWORD[] = {"bismillah", "heavyduty", "gipati01", "inneke90", "gitopati", /*"9000000000", "liquidgas",*/ "", "", "rembang#123", "1234lima"};
+const char* KNOWN_SSID[] = {"Tablet-Deny", "Redmi Note 5", "Inneke Home", "GI_PATI", "INFORMATION CENTER", "GI_PATI2", "GI_PATI3", "PLN_ULTG_REMBANG", "GI REMBANG"};
+const char* KNOWN_PASSWORD[] = {"bismillah", "gipati01", "inneke90", "gitopati", "9000000000", "", "", "rembang#123", "1234lima"};
+const int   KNOWN_SSID_COUNT = sizeof(KNOWN_SSID) / sizeof(KNOWN_SSID[0]); // number of known networks
+
+// Initialize Telegram BOT
+#define BOTtoken "1737474042:AAGk7scL0EVDONxnA5Tw5FfsCU2gLS8Egrk"  // your Bot Token (Get from Botfather)
+//#define CHAT_ID "691646481"   //saya
+#define CHAT_ID "-465979089"    //group
+
+WiFiClientSecure client;
+UniversalTelegramBot bot(BOTtoken, client);
+
+// Checks for new messages every 1 second.
+int botRequestDelay = 1000;
+unsigned long lastTimeBotRan;
+
+const int ledPin = 2;
+bool ledState = LOW;
+
+// RTC
+#include "RTClib.h"
+RTC_DS3231 rtc;
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+/*
+//SD card
+#include "FS.h"
+#include "SD.h"
+#include <SPI.h>
+#define SD_CS 5
+String dataMessage;
+*/
+
+// WiFi state
+int wifiState = 0;
+
+// Millis
+long previousMillis = 0;
+long interval = 3000;
+int ssr1intervalState = 0;
+
+// Measurement
+int line1;
+int line2;
+int line3;
+int16_t batNow, line1m, line2m, line3m;
+float batNowVol, line1mVol, line2mVol, line3mVol;
+
+// pin SSR
+int ssr1 = 27;
+int ssr2 = 14;
+int ssr3 = 12;
+int fuseState1 = 0;
+int fuseState2 = 0;
+int fuseState3 = 0;
+int auxState1 = 0;
+int auxState2 = 0;
+int auxState3 = 0;
+int ssrState1 = 0;
+int ssrState2 = 0;
+int ssrState3 = 0;
+
+// pin LED
+int led1 = 1;
+int led2 = 3;
+int led3 = 32;
+int led4 = 17;  // active kanan
+int led5 = 16;  // active tengah
+int led6 = 4;   // active kiri
+int led7 = 2;
+int led8 = 15;
+int led9 = 13;
+
+// pin DIN jadinya AnalogInput
+int din1 = 39;
+int din2 = 34;
+int din3 = 35;
+
+//pin DOUT
+int dout1 = 33;
+int dout2 = 25;
+int dout3 = 26;
+
+int din1State;
+int din2State;
+int din3State;
+
+// smoothing input digital semi analog
+const int numReadingsDI = 1;
+
+int readingsDI1[numReadingsDI];
+int readIndexDI1 = 0;
+int totalDI1 = 0;
+int averageDI1 = 0;
+
+int readingsDI2[numReadingsDI];
+int readIndexDI2 = 0;
+int totalDI2 = 0;
+int averageDI2 = 0;
+
+int readingsDI3[numReadingsDI];
+int readIndexDI3 = 0;
+int totalDI3 = 0;
+int averageDI3 = 0;
+
+// smoothing input voltage
+const int numReadings = 1;
+
+int readings_l1m[numReadings];
+int readIndex_l1m = 0;
+int total_l1m = 0;
+int average_line1 = 0;
+double realVoltageLine1 = 0;
+
+int readings_l2m[numReadings];
+int readIndex_l2m = 0;
+int total_l2m = 0;
+int average_line2 = 0;
+double realVoltageLine2 = 0;
+
+int readings_l3m[numReadings];
+int readIndex_l3m = 0;
+int total_l3m = 0;
+int average_line3 = 0;
+double realVoltageLine3 = 0;
+
+// Handle what happens when you receive new messages
+void handleNewMessages(int numNewMessages) {
+  DateTime now = rtc.now();
+
+  Serial.println("handleNewMessages");
+  Serial.println(String(numNewMessages));
+
+  for (int i=0; i<numNewMessages; i++) {
+    // Chat id of the requester
+    String chat_id = String(bot.messages[i].chat_id);
+    if (chat_id != CHAT_ID){
+      bot.sendMessage(chat_id, "Unauthorized user", "");
+      continue;
+    }
+    
+    // Print the received message
+    String text = bot.messages[i].text;
+    Serial.println(text);
+
+    String from_name = bot.messages[i].from_name;
+
+    if (text == "/start") {
+      String welcome = "Welcome, " + from_name + ".\n";
+      welcome += "Use the following commands to control your outputs.\n\n";
+      welcome += "[TEST] /led_on to turn GPIO ON \n";
+      welcome += "[TEST] /led_off to turn GPIO OFF \n";
+      welcome += "[TEST] /state to request current GPIO state \n";
+      welcome += "/start to request command list \n";
+      welcome += "/now to request current update \n";
+      //welcome += "/restart to request device to restart \n";
+      bot.sendMessage(chat_id, welcome, "");
+    }
+
+    if (text == "/now") {
+      String messageTelegram = "Updated report Backup System V.1.0 \n\n";
+      messageTelegram = String(now.hour(), DEC) + String(":");
+      messageTelegram = messageTelegram + String(now.minute(), DEC) + String(":");
+      messageTelegram = messageTelegram + String(now.second(), DEC) + String(" - ");
+      messageTelegram = messageTelegram + String(daysOfTheWeek[now.dayOfTheWeek()]) + String(", ");
+      messageTelegram = messageTelegram + String(now.day(), DEC) + String("/");
+      messageTelegram = messageTelegram + String(now.month(), DEC) + String("/");
+      messageTelegram = messageTelegram + String(now.year(), DEC) + "\n\n";
+
+      /*
+      messageTelegram = messageTelegram + String("auxState1 = ") + String(auxState1) + String(" fuseState1 = ") + String(fuseState1) + String(" ssrState1 = ") + String(ssrState1) + String("\n");
+      messageTelegram = messageTelegram + String("auxState2 = ") + String(auxState2) + String(" fuseState2 = ") + String(fuseState2) + String(" ssrState2 = ") + String(ssrState2) + String("\n");
+      messageTelegram = messageTelegram + String("auxState3 = ") + String(auxState3) + String(" fuseState3 = ") + String(fuseState3) + String(" ssrState3 = ") + String(ssrState3) + String("\n");
+      */
+
+      
+      messageTelegram = messageTelegram + String("Line 1 = ") + String(realVoltageLine1) + String(" V\n");
+      messageTelegram = messageTelegram + String("Line 2 = ") + String(realVoltageLine2) + String(" V\n");
+      messageTelegram = messageTelegram + String("Line 3 = ") + String(realVoltageLine3) + String(" V\n\n");
+      
+      messageTelegram = messageTelegram + String("Line 1 = ") + String(average_line1) + String(" bit\n");
+      messageTelegram = messageTelegram + String("Line 2 = ") + String(average_line2) + String(" bit\n");
+      messageTelegram = messageTelegram + String("Line 3 = ") + String(average_line3) + String(" bit\n\n");
+      
+      messageTelegram = messageTelegram + String("Line 1 = ") + String(averageDI1) + String(" bit\n");
+      messageTelegram = messageTelegram + String("Line 2 = ") + String(averageDI2) + String(" bit\n");
+      messageTelegram = messageTelegram + String("Line 3 = ") + String(averageDI3) + String(" bit\n\n");
+      
+
+      if (auxState1 == 1){
+        messageTelegram = messageTelegram + String("Digital Input 1 = ") + String("High") + "\n";
+      } else {
+        messageTelegram = messageTelegram + String("Digital Input 1 = ") + String("Low") + "\n";
+      }
+
+      if (auxState2 == 1){
+        messageTelegram = messageTelegram + String("Digital Input 2 = ") + String("High") + "\n";
+      } else {
+        messageTelegram = messageTelegram + String("Digital Input 2 = ") + String("Low") + "\n";
+      }
+
+      if (auxState3 == 1){
+        messageTelegram = messageTelegram + String("Digital Input 3 = ") + String("High") + "\n\n";
+      } else {
+        messageTelegram = messageTelegram + String("Digital Input 3 = ") + String("Low") + "\n\n";
+      }
+
+      if (ssrState1 == 1){
+        messageTelegram = messageTelegram + String("SSR 1 = ") + String("Close") + "\n";
+      } else {
+        messageTelegram = messageTelegram + String("SSR 1 = ") + String("Open") + "\n";
+      }
+
+      if (ssrState2 == 1){
+        messageTelegram = messageTelegram + String("SSR 2 = ") + String("Close") + "\n";
+      } else {
+        messageTelegram = messageTelegram + String("SSR 2 = ") + String("Open") + "\n";
+      }
+
+      if (ssrState3 == 1){
+        messageTelegram = messageTelegram + String("SSR 3 = ") + String("Close") + "\n\n";
+      } else {
+        messageTelegram = messageTelegram + String("SSR 3 = ") + String("Open") + "\n\n";
+      }
+
+      messageTelegram = messageTelegram + String("V Battery = ") + String(batNowVol) + "\n";
+      bot.sendMessage(chat_id, messageTelegram, "");
+    }
+
+    if (text == "/ssr1-instant") {
+      bot.sendMessage(chat_id, "SSR 1 now working instantly without any delay", "");
+      long interval = 0;
+      int ssr1intervalState = 0;
+    }
+
+    if (text == "/ssr1-5s") {
+      bot.sendMessage(chat_id, "SSR 1 now working after 5s delay", "");
+      long interval = 5000;
+      int ssr1intervalState = 5;
+    }
+
+    if (text == "/ssr1-60s") {
+      bot.sendMessage(chat_id, "SSR 1 now working after 60s delay", "");
+      long interval = 60000;
+      int ssr1intervalState = 60;
+    }
+    
+    if (text == "/restart") {
+      bot.sendMessage(chat_id, "Now device is restating...", "");
+      delay(2000);
+      //ESP.restart();
+    }
+    
+    if (text == "/led_on") {
+      bot.sendMessage(chat_id, "LED state set to ON", "");
+      ledState = HIGH;
+      digitalWrite(ledPin, ledState);
+    }
+    
+    if (text == "/led_off") {
+      bot.sendMessage(chat_id, "LED state set to OFF", "");
+      ledState = LOW;
+      digitalWrite(ledPin, ledState);
+    }
+    
+    if (text == "/state") {
+      if (digitalRead(ledPin)){
+        bot.sendMessage(chat_id, "LED is ON", "");
+      }
+      else{
+        bot.sendMessage(chat_id, "LED is OFF", "");
+      }
+    }
+  }
+}
+
+// Get timestamp
+void timeStamp() {
+  DateTime now = rtc.now();
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  Serial.print(" - ");
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.print(',');
+  Serial.print(now.day(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.print(now.year(), DEC);
+  Serial.println();
+}
+
+/*
+// Append data to the SD card (DON'T MODIFY THIS FUNCTION)
+void appendFile(fs::FS &fs, const char * path, const char * message) {
+  Serial.printf("Appending to file: %s\n", path);
+  File file = fs.open(path, FILE_APPEND);
+  if(!file) {
+    Serial.println("Failed to open file for appending");
+    return;
+  }
+  if(file.print(message)) {
+    Serial.println("Message appended");
+  } else {
+    Serial.println("Append failed");
+  }
+  file.close();
+}
+
+// Write the sensor readings on the SD card
+void logSDCard() {
+  DateTime now = rtc.now();
+  unsigned long currentMillis = millis();
+  if(currentMillis - previousMillis > interval) {
+    previousMillis = currentMillis;
+
+    dataMessage =  String(now.hour(), DEC) + String(":");
+    dataMessage =  dataMessage + String(now.minute(), DEC) + String(":");
+    dataMessage =  dataMessage + String(now.second(), DEC) + String(";"); //change semicolon
+    dataMessage =  dataMessage + String(daysOfTheWeek[now.dayOfTheWeek()]) + String(",");
+    dataMessage =  dataMessage + String(now.day(), DEC) + String("/");
+    dataMessage =  dataMessage + String(now.month(), DEC) + String("/");
+    dataMessage =  dataMessage + String(now.year(), DEC) + String(";");   //change semicolon
+    dataMessage =  dataMessage + String(line1) + String(";");
+    dataMessage =  dataMessage + String(line2) + String(";");
+    dataMessage =  dataMessage + String(line3) + String(";");
+    dataMessage =  dataMessage + String(batNow) + "\n";
+
+    Serial.print("Save data: ");
+    Serial.println(dataMessage);
+    appendFile(SD, "/data.txt", dataMessage.c_str());
+  }
+}
+
+// Write to the SD card (DON'T MODIFY THIS FUNCTION)
+void writeFile(fs::FS &fs, const char * path, const char * message) {
+  Serial.printf("Writing file: %s\n", path);
+  File file = fs.open(path, FILE_WRITE);
+  if(!file) {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  if(file.print(message)) {
+    Serial.println("File written");
+  } else {
+    Serial.println("Write failed");
+  }
+  file.close();
+}
+*/
+
+void setup () {
+  Serial.begin(115200);
+
+  pinMode (ssr1, OUTPUT);
+  pinMode (ssr2, OUTPUT);
+  pinMode (ssr3, OUTPUT);
+  pinMode (led1, OUTPUT);
+  pinMode (led2, OUTPUT);
+  pinMode (led3, OUTPUT);
+  pinMode (led4, OUTPUT);
+  pinMode (led5, OUTPUT);
+  pinMode (led6, OUTPUT);
+  pinMode (led7, OUTPUT);
+  pinMode (led8, OUTPUT);
+  pinMode (led9, OUTPUT);
+  pinMode (dout1, OUTPUT);
+  pinMode (dout2, OUTPUT);
+  pinMode (dout3, OUTPUT);
+  pinMode (din1, INPUT);
+  pinMode (din2, INPUT);
+  pinMode (din3, INPUT);
+
+  digitalWrite(ssr1, LOW);
+  digitalWrite(ssr2, LOW);
+  digitalWrite(ssr3, LOW);
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, LOW);
+  digitalWrite(led3, LOW);
+  
+  digitalWrite(led4, LOW);
+  digitalWrite(led5, LOW);
+  digitalWrite(led6, LOW);
+  delay(500);
+
+  digitalWrite(led7, LOW);
+  digitalWrite(led8, LOW);
+  digitalWrite(led9, LOW);
+  digitalWrite(dout1, LOW);
+  digitalWrite(dout2, LOW);
+  digitalWrite(dout3, LOW);
+
+  digitalWrite(led6, HIGH);
+  delay(1000);
+  digitalWrite(led5, HIGH);
+  delay(1000);
+  digitalWrite(led4, HIGH);
+  delay(1000);
+  digitalWrite(led4, LOW);
+  digitalWrite(led5, LOW);
+  digitalWrite(led6, LOW);
+  delay(500);
+
+  if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, lets set the time!");
+    // Following line sets the RTC with an explicit date & time
+    // for example to set January 27 2017 at 12:56 you would call:
+    // rtc.adjust(DateTime(2017, 1, 27, 12, 56, 0));
+  }
+
+  /*
+  // Initialize SD card
+  SD.begin(SD_CS);  
+  if(!SD.begin(SD_CS)) {
+    Serial.println("Card Mount Failed");
+    return;
+  }
+  uint8_t cardType = SD.cardType();
+  if(cardType == CARD_NONE) {
+    Serial.println("No SD card attached");
+    return;
+  }
+  Serial.println("Initializing SD card...");
+  if (!SD.begin(SD_CS)) {
+    Serial.println("ERROR - SD card initialization failed!");
+    return;    // init failed
+  }
+  File file = SD.open("/data.txt");
+  if(!file) {
+    Serial.println("File doens't exist");
+    Serial.println("Creating file...");
+    writeFile(SD, "/data.txt", "ESP32 and SD Card \r\n");
+  }
+  else {
+    Serial.println("File already exists");  
+  }
+  file.close();
+  */
+
+  ////////////////////////////////////////////////////////////////
+  boolean wifiFound = false;
+  int i, n;
+
+  // Print ESP32 Local IP Address
+  Serial.println(WiFi.localIP());
+
+  // Set WiFi to station mode and disconnect from an AP if it was previously connected
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+  Serial.println("Setup done");
+
+  // WiFi.scanNetworks will return the number of networks found
+  Serial.println(F("scan start"));
+  int nbVisibleNetworks = WiFi.scanNetworks();
+  Serial.println(F("scan done"));
+
+  if (nbVisibleNetworks == 0) {
+    Serial.println(F("no networks found. Reset to try again"));
+    while (true); // no need to go further, hang in there, will auto launch the Soft WDT reset
+  }
+
+  // if you arrive here at least some networks are visible
+  Serial.print(nbVisibleNetworks);
+  Serial.println(" network(s) found");
+
+  // check if we recognize one by comparing the visible networks one by one with our list of known networks
+  for (i = 0; i < nbVisibleNetworks; ++i) {
+    Serial.println(WiFi.SSID(i)); // Print current SSID
+    for (n = 0; n < KNOWN_SSID_COUNT; n++) { // walk through the list of known SSID and check for a match
+      if (strcmp(KNOWN_SSID[n], WiFi.SSID(i).c_str())) {
+        Serial.print(F("\tNot matching "));
+        Serial.println(KNOWN_SSID[n]);
+      } else { // we got a match
+        wifiFound = true;
+        break; // n is the network index we found
+      }
+    } // end for each known wifi SSID
+    if (wifiFound) break; // break from the "for each visible network" loop
+  } // end for each visible network
+
+  if (!wifiFound) {
+    wifiState = 0;
+    digitalWrite(led6, LOW);
+
+    Serial.println(F("no Known network identified. Reset to try again"));
+    //while (true); // no need to go further, hang in there, will auto launch the Soft WDT reset
+  } else {
+    wifiState = 1;
+    digitalWrite(led6, HIGH);
+
+  // if you arrive here you found 1 known SSID
+  Serial.print(F("\nConnecting to "));
+  Serial.println(KNOWN_SSID[n]);
+
+  // We try to connect to the WiFi network we found
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(KNOWN_SSID[n], KNOWN_PASSWORD[n]);
+  #ifdef ESP32
+    client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+  #endif
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+
+  // SUCCESS, you are connected to the known WiFi network
+  Serial.println(F("WiFi connected, your IP address is "));
+  Serial.println(WiFi.localIP());
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Hi! I am Backup Measurement. Please click IP/update for updating firmware.bin");
+  });
+
+  AsyncElegantOTA.begin(&server);
+  server.begin();
+  Serial.println("HTTP server started");
+
+  String started = "BM V.1 was started\nYou are in this group will get some updates from BM V.1 if device find some unusual event.\n\n";
+  started += "Now BM V.1 is connect to " + String(KNOWN_SSID[n]) + ", with IP address is " + WiFi.localIP().toString();
+  started += ". Please press reset button (something with yellow mark in this BM V.1 hardware device) if you want to change another WiFi connection.\n\n";
+  started += "Here are lists of registered WiFi connection or SSID with the smaller number will be choosen than another: \n";
+  started += "(1)Tablet-Deny,\n(2)Redmi Note 5,\n(3)Inneke Home,\n(4)GI_PATI,\n(5)INFORMATION CENTER,\n(6)GI_PATI2,\n(7)GI_PATI3,\n(8)PLN_ULTG_REMBANG,\n(9)GI REMBANG \n\n";
+
+  started += "Use the following commands to control your outputs:\n";
+  started += "[TEST] /led_on to turn GPIO ON \n";
+  started += "[TEST] /led_off to turn GPIO OFF \n";
+  started += "[TEST] /state to request current GPIO state \n";
+  started += "/start to request command list \n";
+  started += "/now to request current update \n\n";
+  //started += "/restart to request device to restart \n";
+
+  started += "If you find some bugs or need some improvement for BM V.1 don't hesitate to contact: \n";
+  started += "0857 4131 1479";
+  bot.sendMessage(CHAT_ID, started, "");
+    
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, ledState);
+
+  }
+
+  
+
+
+  ads.setGain(GAIN_TWOTHIRDS);  
+  ads.begin();
+
+  for (int thisReading_l1m = 0; thisReading_l1m < numReadings; thisReading_l1m ++) {
+    readings_l1m[thisReading_l1m] = 0;
+  }
+
+  for (int thisReading_l2m = 0; thisReading_l2m < numReadings; thisReading_l2m ++) {
+    readings_l2m[thisReading_l2m] = 0;
+  }
+
+  for (int thisReading_l3m = 0; thisReading_l3m < numReadings; thisReading_l3m ++) {
+    readings_l3m[thisReading_l3m] = 0;
+  }
+
+  for (int thisReadingDI1 = 0; thisReadingDI1 < numReadingsDI; thisReadingDI1++) {
+    readingsDI1[thisReadingDI1] = 0;
+  }
+
+  for (int thisReadingDI2 = 0; thisReadingDI2 < numReadingsDI; thisReadingDI2++) {
+    readingsDI2[thisReadingDI2] = 0;
+  }
+
+  for (int thisReadingDI3 = 0; thisReadingDI3 < numReadingsDI; thisReadingDI3++) {
+    readingsDI3[thisReadingDI3] = 0;
+  }
+  digitalWrite(led5, HIGH);
+}
+
+void loop () {
+  if (wifiState == 1) {
+    AsyncElegantOTA.loop();
+
+    if (millis() > lastTimeBotRan + botRequestDelay)  {
+      int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+
+      while(numNewMessages) {
+        Serial.println("got response");
+        handleNewMessages(numNewMessages);
+        numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+      }
+      lastTimeBotRan = millis();
+    }
+  }
+
+  //logSDCard();
+  //timeStamp();
+
+  batNow = ads.readADC_SingleEnded(0);
+  line1m = ads.readADC_SingleEnded(1);
+  line2m = ads.readADC_SingleEnded(2);
+  line3m = ads.readADC_SingleEnded(3);
+  batNowVol = ads.computeVolts(batNow);
+
+  total_l1m = total_l1m - readings_l1m[readIndex_l1m];
+  readings_l1m[readIndex_l1m] = line1m;
+  total_l1m = total_l1m + readings_l1m[readIndex_l1m];
+  readIndex_l1m = readIndex_l1m + 1;
+
+  if (readIndex_l1m >= numReadings) {
+    readIndex_l1m = 0;
+  }
+  average_line1 = total_l1m / numReadings;
+  realVoltageLine1 = ((average_line1 * 0.0026) + 0.1711) * sqrt(3);
+
+  total_l2m = total_l2m - readings_l2m[readIndex_l2m];
+  readings_l2m[readIndex_l2m] = line2m;
+  total_l2m = total_l2m + readings_l2m[readIndex_l2m];
+  readIndex_l2m = readIndex_l2m + 1;
+
+  if (readIndex_l2m >= numReadings) {
+    readIndex_l2m = 0;
+  }
+  average_line2 = total_l2m / numReadings;
+  realVoltageLine2 = ((average_line2 * 0.0026) + 0.0614) * sqrt(3);
+
+  total_l3m = total_l3m - readings_l3m[readIndex_l3m];
+  readings_l3m[readIndex_l3m] = line3m;
+  total_l3m = total_l3m + readings_l3m[readIndex_l3m];
+  readIndex_l3m = readIndex_l3m + 1;
+
+  if (readIndex_l3m >= numReadings) {
+    readIndex_l3m = 0;
+  }
+  average_line3 = total_l3m / numReadings;
+  realVoltageLine3 = ((average_line3 * 0.0026) + 0.4802) * sqrt(3);
+
+  totalDI1 = totalDI1 - readingsDI1[readIndexDI1];
+  readingsDI1[readIndexDI1] = analogRead(din1);
+  totalDI1 = totalDI1 + readingsDI1[readIndexDI1];
+  readIndexDI1 = readIndexDI1 + 1;
+  if (readIndexDI1 >= numReadingsDI) {
+    readIndexDI1 = 0;
+  }
+  averageDI1 = totalDI1 / numReadingsDI;
+
+  totalDI2 = totalDI2 - readingsDI2[readIndexDI2];
+  readingsDI2[readIndexDI2] = analogRead(din2);
+  totalDI2 = totalDI2 + readingsDI2[readIndexDI2];
+  readIndexDI2 = readIndexDI2 + 1;
+  if (readIndexDI2 >= numReadingsDI) {
+    readIndexDI2 = 0;
+  }
+  averageDI2 = totalDI2 / numReadingsDI;
+
+  totalDI3 = totalDI3 - readingsDI3[readIndexDI3];
+  readingsDI3[readIndexDI3] = analogRead(din3);
+  totalDI3 = totalDI3 + readingsDI3[readIndexDI3];
+  readIndexDI3 = readIndexDI3 + 1;
+  if (readIndexDI3 >= numReadingsDI) {
+    readIndexDI3 = 0;
+  }
+  averageDI3 = totalDI3 / numReadingsDI;
+
+
+  // digital input respones
+  if (averageDI1 > 4080) {
+    auxState1 = 1;
+  } else {
+    auxState1 = 0;
+  }
+
+  if (averageDI2 > 4080) {
+    auxState2 = 1;
+  } else {
+    auxState2 = 0;
+  }
+
+  if (averageDI3 > 4080) {
+    auxState3 = 1;
+  } else {
+    auxState3 = 0;
+  }
+
+  // input voltage responses
+  if (realVoltageLine1 < 75){
+    fuseState1 = 1;
+    //bot.sendMessage(CHAT_ID, "Line 1 voltage is under 75 V", "");
+  } else {
+    fuseState1 = 0;
+  }
+
+  if (realVoltageLine2 < 75){
+    fuseState2 = 1;
+    //bot.sendMessage(CHAT_ID, "Line 2 voltage is under 75 V", "");
+  } else {
+    fuseState2 = 0;
+  }
+
+  if (realVoltageLine3 < 75){
+    fuseState3 = 1;
+    //bot.sendMessage(CHAT_ID, "Line 3 voltage is under 75 V", "");
+  } else {
+    fuseState3 = 0;
+  }
+  
+  if (auxState1 == 1 || fuseState1 == 1) {
+    ssrState1 = 1;
+    digitalWrite(ssr1, HIGH);
+    digitalWrite(led4, HIGH);
+    if (wifiState == 1) {
+      bot.sendMessage(CHAT_ID, "SSR 1 CLOSE", "");
+    }
+  } else {
+    ssrState1 = 0;
+    digitalWrite(ssr1, LOW);
+    digitalWrite(led4, LOW);
+  }
+  if (auxState2 == 1 || fuseState2 == 1) {
+    ssrState2 = 1;
+    digitalWrite(ssr2, HIGH);
+    digitalWrite(led4, HIGH);
+    if (wifiState == 1) {
+      bot.sendMessage(CHAT_ID, "SSR 2 CLOSE", "");
+    }
+  } else {
+    ssrState2 = 0;
+    digitalWrite(ssr2, LOW);
+    digitalWrite(led4, LOW);
+  }
+  if (auxState3 == 1 || fuseState3 == 1) {
+    ssrState3 = 1;
+    digitalWrite(ssr3, HIGH);
+    digitalWrite(led4, HIGH);
+    if (wifiState == 1) {
+      bot.sendMessage(CHAT_ID, "SSR 3 CLOSE", "");
+    }
+  } else {
+    ssrState3 = 0;
+    digitalWrite(ssr3, LOW);
+    digitalWrite(led4, LOW);
+  }
+
+  // SSR state
+  // if (auxState1 == 1 || fuseState1 == 1 ){
+  //   unsigned long currentMillis = millis();
+  //   if(currentMillis - previousMillis > interval) {
+  //     previousMillis = currentMillis; 
+  //     digitalWrite(ssr1, HIGH);
+  //     ssrState1 = 1;
+  //     digitalWrite(led4, HIGH);
+  //   }
+  // } else {
+  //   digitalWrite(ssr1, LOW);
+  //   ssrState1 = 0;
+  //   digitalWrite(led4, LOW);
+  // }
+
+  // if (auxState2 == 1 || fuseState2 == 1 ){
+  //   unsigned long currentMillis = millis();
+  //   if(currentMillis - previousMillis > interval) {
+  //     previousMillis = currentMillis; 
+  //     digitalWrite(ssr2, HIGH);
+  //     ssrState2 = 1;
+  //     digitalWrite(led4, HIGH);
+  //   }
+  // } else {
+  //   digitalWrite(ssr2, LOW);
+  //   ssrState2 = 0;
+  //   digitalWrite(led4, LOW);
+  // }
+
+  // if (auxState3 == 1 || fuseState3 == 1 ){
+  //   unsigned long currentMillis = millis();
+  //   if(currentMillis - previousMillis > interval) {
+  //     previousMillis = currentMillis; 
+  //     digitalWrite(ssr3, HIGH);
+  //     ssrState3 = 1;
+  //     digitalWrite(led4, HIGH);
+  //   }
+  // } else {
+  //   digitalWrite(ssr3, LOW);
+  //   ssrState3 = 0;
+  //   digitalWrite(led4, LOW);
+  // }
+
+/*
+  // SSR state
+  if (auxState1 == 1 || auxState2 == 1 || auxState3 == 1){
+    //unsigned long currentMillis = millis();
+    //if(currentMillis > previousMillis + interval){
+      //previousMillis = currentMillis; 
+      delay(3000);
+
+      digitalWrite(ssr1, HIGH);
+      digitalWrite(ssr2, HIGH);
+      digitalWrite(ssr3, HIGH);
+      digitalWrite(led4, HIGH);
+      //digitalWrite(led5, HIGH);
+      ssrState1 = 1;
+      ssrState2 = 1;
+      ssrState3 = 1;
+    //}
+  } else {
+    digitalWrite(ssr1, LOW);
+    digitalWrite(ssr2, LOW);
+    digitalWrite(ssr3, LOW);
+    digitalWrite(led4, LOW);
+    //digitalWrite(led5, LOW);
+    ssrState1 = 0;
+    ssrState2 = 0;
+    ssrState3 = 0;
+  }
+*/
+
+  // if (auxState1 == 1 && wifiState == 1) {
+  //   bot.sendMessage(CHAT_ID, "Digital Input 1 is HIGH", "");
+  // }
+  // if (auxState2 == 1 && wifiState == 1) {
+  //   bot.sendMessage(CHAT_ID, "Digital Input 2 is HIGH", "");
+  // }
+  // if (auxState3 == 1 && wifiState == 1) {
+  //   bot.sendMessage(CHAT_ID, "Digital Input 3 is HIGH", "");
+  // }
+  // if (fuseState1 == 1 && wifiState == 1) {
+  //   bot.sendMessage(CHAT_ID, "Line 1 is " + String(realVoltageLine1), "");
+  // }
+  // if (fuseState2 == 1 && wifiState == 1) {
+  //   bot.sendMessage(CHAT_ID, "Line 2 is " + String(realVoltageLine2), "");
+  // }
+  // if (fuseState3 == 1 && wifiState == 1) {
+  //   bot.sendMessage(CHAT_ID, "Line 3 is " + String(realVoltageLine3), "");
+  // }
+
+}
