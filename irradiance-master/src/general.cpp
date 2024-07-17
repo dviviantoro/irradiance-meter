@@ -522,7 +522,7 @@ void run_sensor_1()
         Serial.print("tProgress.txt=\"");
         Serial.print("Push data to cloud . . .\"");
         nextion_separator();
-        upload_to_gsheet(value1, value2, value3);
+        // upload_to_gsheet(value1, value2, value3);
         // makeIFTTTRequest();
     }
 }
@@ -559,7 +559,7 @@ void run_sensor_2()
         Serial.print("tProgress.txt=\"");
         Serial.print("Push data to cloud . . .\"");
         nextion_separator();
-        upload_to_gsheet(value1, value2, value3);
+        // upload_to_gsheet(value1, value2, value3);
         // makeIFTTTRequest();
     }
 }
@@ -595,7 +595,7 @@ void run_sensor_3()
         Serial.print("tProgress.txt=\"");
         Serial.print("Push data to cloud . . .\"");
         nextion_separator();
-        upload_to_gsheet(value1, value2, value3);
+        // upload_to_gsheet(value1, value2, value3);
         // makeIFTTTRequest();
     }
 }

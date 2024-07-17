@@ -8,6 +8,8 @@
 #include <rtc-ao.h>
 #include <sd-ao.h>
 
+unsigned long previousMillis_db = 0;
+
 // Declare your Nextion objects - Example (page id = 0, component id = 1, component name = "b0") 
 // Page 0 = booting page
 NexPage page0 = NexPage(0, 0, "page0");
@@ -593,6 +595,7 @@ void setup()
 {
     Serial.begin(115200);
     Wire.begin();
+    /*
     nexInit();
     pinMode(Enable, OUTPUT);
 
@@ -606,8 +609,6 @@ void setup()
     nextion_separator();
 
     delay(5000);
-    init_peripheral();
-    initWifi();
 
     register_nextion_callback();
   
@@ -616,10 +617,15 @@ void setup()
     Serial.print("page 1");
     nextion_separator();
     currentPage = 1;
+    // upload_to_gsheet(9,9,9);
+    */
+    init_peripheral();
+    initWifi();
 }
 
 void loop()
 {
+    unsigned long currentMillis = millis();
     String timeNow = update_rtc_dayOfTheWeek() + String(" - ");
     timeNow += update_rtc_day() + String("/");
     timeNow += update_rtc_month() + String("/");
@@ -627,9 +633,9 @@ void loop()
     timeNow += update_rtc_hour() + ":";
     timeNow += update_rtc_minute() + ":";
     timeNow += update_rtc_second();
+/*
   
     // if WiFi is down, try reconnecting every CHECK_WIFI_TIME seconds
-    unsigned long currentMillis = millis();
     if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval))
     {
         Serial.print(millis());
@@ -655,7 +661,8 @@ void loop()
     (update_rtc_hour().toInt() > (slcStart-1)) && (update_rtc_hour().toInt() < (slcEnd-1)) ? stateMaster = 1 : stateMaster = 0;
     if (currentPage == 1)
     {
-        collect_data();
+        // collect_data();
+        // upload_to_gsheet(1,2,3);
     }
 
     if (stateMaster == 1) {
@@ -679,4 +686,12 @@ void loop()
 
     check_page();
     nexLoop(nex_listen_list);
+*/
+    if (currentMillis - previousMillis_db >= interval)
+    {
+        write_influx();
+        Serial.println(update_rtc_unix());
+        previousMillis_db = currentMillis;
+    }
+
 }

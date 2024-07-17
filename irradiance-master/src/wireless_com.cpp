@@ -4,37 +4,92 @@
 #include <general.h>
 #include <modbus-ao.h>
 
-#define PROJECT_ID "irradiance-logger-425801"
-#define CLIENT_EMAIL "irradiance-logger-service@irradiance-logger-425801.iam.gserviceaccount.com"
+#define DEVICE "TTGO-T7-V15"
+#define LOCATION "SMP IT Wasilah Garut"
+#define INFLUXDB_URL "http://192.168.1.203:8086"
+#define INFLUXDB_TOKEN "29znIj8QXqVeX8RdLrftrw10HKeyer428DYq7n5kaMvQK6ZBS9eIEcEhaDfjh1JQF2K0mmieQtOJA00UXUQHZw=="
+#define INFLUXDB_ORG "power-hv"
+#define INFLUXDB_BUCKET "irradiance"
 
 #define BOTtoken "5917398507:AAFSCyGgvUH9LoeGT4Ch47d8yE3uMThglfw"  // your Bot Token (Get from Botfather)
 #define CHAT_ID "-898094308"    //group irradiance
 // #define CHAT_ID "691646481"   //saya
 
-const char* KNOWN_SSID[] = {"Galaxy-Deny", "INFORMATION CENTER", "TP-Link_5FBA", "smpitwasilah"};
-const char* KNOWN_PASSWORD[] = {"bismillah", "9000000000", "68043636", "cipanas15"};
+const char* KNOWN_SSID[] = {"Galaxy-Deny", "information_center", "INFORMATION CENTER", "TP-Link_5FBA", "smpitwasilah"};
+const char* KNOWN_PASSWORD[] = {"bismillah", "9000000000", "9000000000", "68043636", "cipanas15"};
 const int   KNOWN_SSID_COUNT = sizeof(KNOWN_SSID) / sizeof(KNOWN_SSID[0]); // number of known networks
-
-const char PRIVATE_KEY[] PROGMEM = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDQbh0mMV0uiXPQ\nNzJGlImczXG3N4axxYy8SNDFVSmsw1hK5uYO93vwzvHD2jv0zxJ+mvRf5ZmwZQCT\nmMo36ZzHWc8KuTILtPCkpPUW8U7keaikfgHANel60k7jVlv/wtU5xeGKKtSLmObJ\nHpVdTGm4+qx1or0BivRyOpn0wpiYVlhJi9xgMr7opp663b+v6U4o37NctWkJr1np\nWKozXdITPlx5aHxsi08Ren4ZlCx8LWDmDagBzIAy1L/DeEEvprWVPA5AMzf1kKvF\nqmFAfSGUCWOB0FaL/pyBfNFcB8kV9Sb+xgxogyXbE5XRrFA4u73Edmc2zrdkDIA/\nwP3nkhUlAgMBAAECggEAGUevGmb0sIR0Zbs5dQJmxHwjQD/TAvR9KDMZZe3OjbPt\nyBFEXb6vq4VLdoqdfgkFlbyGn6unSJP043IDM4/j95vmzEaqZsLDSJJHYHPT3UtS\nOeKcpMBajrk7tJV7YsSHUdK0kypfDYV17HaHUuxwiu1Ahfi/PZTUfEGrqFpX4WtT\nS0CwaIJithCb8cKgZwOFC0aqup1Pwd5BsMtwnDIc/gYZp79Iylp/vc6M3O0Ju/r9\nDCB/khuXmfnjdD8eGRsLeL0xblUYgXLg0+J59FmhLlz4n9/sCEuCy1xJTASQ8CSh\n0hh9rc2d/ifztuRS4D9PD5vgy9rF6cE82T3TrfqPuwKBgQD+59VdEvqCii4/pjUH\ndx4Rx/fSviiYtXHRMZAYKlFArayS5/+Y/5Zwm+9LwP/TfwgwHt8yVqptcEoJ4tDl\nd54dR+qKOD33QCwfsftpejUYbK+3tkOKN6rlPZ8N7PXC0IeL5mjHjctPYiBNryk6\npGxPZ5rKUbfv+/1cD+H5yqpCewKBgQDRUzMC21BRnEd+P+NQK6gHCTD8HprodM+X\nd3KkgEjYnEoyzPSFhk3Vv5IOcqXma7vDaz4fGcsAxqt+N0T5WAieiRUBhrhMI+ft\njlHGOHGK+0xe0omFgb8t0yioolHlT/fNidviINDN0lx8npb5PbwRbJ0pxGBOq7P1\nH7209lTE3wKBgQCYzXSThKry0c6DjSjAvuEhm5OtmxxO3oXJ90H/mm52rSWEMtp/\nZsdR3cgGyz0QFVhdMERvspAbZnKbloHO7HO17cRk8u4CZ0+L+G9TfVSSvaRgJjw6\ngMBLBzNvb5qrG8IFVSt+ZDt57MKcjuHSK3pZ5ytdGLuAergYFdVKnfiOPQKBgB3O\nbxEVEZbNXhDIICImVULLOEJuSTiYiYbT52stKTJO7vHU5Wyt9x9cq/uKr7zj0lS9\nTJc5IQL3RywtypCGzJNmiasx98Q/yKK3BUXoe6KCrhlCeXqdQw/PZZa9plO002Bd\nJQZKDfGA5tKH8o+DDuicQrTT1bLeGD3rSyQdf2yZAoGATLs5CYX6PssNTRmqvA0Y\nMVCiT5hEkl6JFeKQtZHlWfoEaFIZm/5/poWfDmehCZdUR3M5JebirX4DjW0FvVEY\nQCqZoCCCVYPb5xMOUa75qIqvf5U1N2RCirN6P49zh+9YvXBV/UuLIezhFltOcy7s\nrKe4d/AFxpPyP678sdIgzyQ=\n-----END PRIVATE KEY-----\n";
-const char spreadsheetId[] = "1dMt2qyTz7lXJs7lLNZ-yuvO9SkYED_QHo8KKps-_wFU";
 
 bool wifiState = false;
 int ssidState = 0;
 int botRequestDelay = 1000;
 unsigned long lastTimeBotRan;
+unsigned long ota_progress_millis = 0;
+String msgOTA = "Hi! I am master device! (new version)";
 
-AsyncWebServer server(80);
-WiFiClientSecure client;
-UniversalTelegramBot bot(BOTtoken, client);
+InfluxDBClient client_db(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+Point sensor("irradiance_logger");
 
-void tokenStatusCallback(TokenInfo info);
+AsyncWebServer server_ota(80);
+WiFiClientSecure client_tele;
+UniversalTelegramBot bot(BOTtoken, client_tele);
 
-void init_gsheet()
+void init_influxdb()
 {
-    GSheet.printf("ESP Google Sheet Client v%s\n\n", ESP_GOOGLE_SHEET_CLIENT_VERSION);
-    GSheet.setTokenCallback(tokenStatusCallback);
-    GSheet.setPrerefreshSeconds(10 * 60);
-    GSheet.begin(CLIENT_EMAIL, PROJECT_ID, PRIVATE_KEY);
+    sensor.addTag("device", DEVICE);
+    sensor.addTag("location", LOCATION);
+
+    // Check server connection
+    if (client_db.validateConnection()) {
+        Serial.print("Connected to InfluxDB: ");
+        Serial.println(client_db.getServerUrl());
+    } else {
+        Serial.print("InfluxDB connection failed: ");
+        Serial.println(client_db.getLastErrorMessage());
+    }
+}
+
+void onOTAStart()
+{
+    // Log when OTA has started
+    Serial.println("OTA update started!");
+    // <Add your own code here>
+}
+
+void onOTAProgress(size_t current, size_t final)
+{
+    // Log every 1 second
+    if (millis() - ota_progress_millis > 1000)
+    {
+        ota_progress_millis = millis();
+        Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+    }
+}
+
+void onOTAEnd(bool success) {
+    // Log when OTA has finished
+    if (success) {
+        Serial.println("OTA update finished successfully!");
+    } else {
+        Serial.println("There was an error during OTA update!");
+    }
+    // <Add your own code here>
+}
+
+void initOTA()
+{
+    server_ota.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+    {
+        request->send(200, "text/plain", msgOTA);
+    });
+
+    ElegantOTA.begin(&server_ota);    // Start ElegantOTA
+    // ElegantOTA callbacks
+    ElegantOTA.onStart(onOTAStart);
+    ElegantOTA.onProgress(onOTAProgress);
+    ElegantOTA.onEnd(onOTAEnd);
+
+    server_ota.begin();
+    Serial.println("HTTP server (OTA) started");
 }
 
 void initWifi()
@@ -158,19 +213,13 @@ void initWifi()
         Serial.print("\"");
         nextion_separator();
 
-        server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-        {
-            request->send(200, "text/plain", "Hi! I am master device!");
-        });
-
-        AsyncElegantOTA.begin(&server);
-        server.begin();
-
+        initOTA();
         Serial.print("tLog18.txt=\"");
         Serial.print("[OK] OTA connected\"");
         nextion_separator();
 
-        init_gsheet();
+        // init_gsheet();
+        init_influxdb();
     }
 }
 
@@ -341,52 +390,70 @@ void check_incoming_telegram()
     }
 }
 
-void tokenStatusCallback(TokenInfo info)
+void write_influx()
 {
-    if (info.status == token_status_error)
-    {
-        GSheet.printf("Token info: type = %s, status = %s\n", GSheet.getTokenType(info).c_str(), GSheet.getTokenStatus(info).c_str());
-        GSheet.printf("Token error: %s\n", GSheet.getTokenError(info).c_str());
+    sensor.clearFields();
+
+    sensor.addField("irradiance-1", random(1000, 2000));
+    sensor.addField("irradiance-2", random(2000, 3000));
+    sensor.addField("irradiance-3", random(3000, 4000));
+  
+    Serial.print("Writing: ");
+    Serial.println(sensor.toLineProtocol());
+
+    // Write point
+    if (!client_db.writePoint(sensor)) {
+      Serial.print("InfluxDB write failed: ");
+      Serial.println(client_db.getLastErrorMessage());
     }
-    else
-    {
-        GSheet.printf("Token info: type = %s, status = %s\n", GSheet.getTokenType(info).c_str(), GSheet.getTokenStatus(info).c_str());
-    }
-}
+  }
 
-void upload_to_gsheet(int value1, int value2, int value3)
-{
-    FirebaseJson response;
-    Serial.println("\nAppend spreadsheet values...");
-    Serial.println("----------------------------");
-    FirebaseJson valueRange;
+// void tokenStatusCallback(TokenInfo info)
+// {
+//     if (info.status == token_status_error)
+//     {
+//         GSheet.printf("Token info: type = %s, status = %s\n", GSheet.getTokenType(info).c_str(), GSheet.getTokenStatus(info).c_str());
+//         GSheet.printf("Token error: %s\n", GSheet.getTokenError(info).c_str());
+//     }
+//     else
+//     {
+//         GSheet.printf("Token info: type = %s, status = %s\n", GSheet.getTokenType(info).c_str(), GSheet.getTokenStatus(info).c_str());
+//     }
+// }
 
-    String date_now = update_rtc_year() + "/";
-    date_now += update_rtc_month() + "/";
-    date_now += update_rtc_day();
+// void upload_to_gsheet(int value1, int value2, int value3)
+// {
+//     FirebaseJson response;
+//     Serial.println("\nAppend spreadsheet values...");
+//     Serial.println("----------------------------");
+//     FirebaseJson valueRange;
 
-    String time_now = update_rtc_hour() + ":";
-    time_now += update_rtc_minute() + ":";
-    time_now += update_rtc_second();
+//     String date_now = update_rtc_year() + "/";
+//     date_now += update_rtc_month() + "/";
+//     date_now += update_rtc_day();
 
-    valueRange.add("majorDimension", "COLUMNS");
-    valueRange.set("values/[0]/[0]", update_rtc_unix());
-    valueRange.set("values/[1]/[0]", date_now);
-    valueRange.set("values/[2]/[0]", time_now);
-    valueRange.set("values/[3]/[0]", value1);
-    valueRange.set("values/[4]/[0]", value2);
-    valueRange.set("values/[5]/[0]", value3);
+//     String time_now = update_rtc_hour() + ":";
+//     time_now += update_rtc_minute() + ":";
+//     time_now += update_rtc_second();
 
-    bool success = GSheet.values.append(&response /* returned response */, spreadsheetId /* spreadsheet Id to append */, "Sheet1!A1" /* range to append */, &valueRange /* data range to append */);
-    if (success)
-    {
-        response.toString(Serial, true);
-        valueRange.clear();
-    }
-    else
-    {
-        Serial.println(GSheet.errorReason());
-    }
-    Serial.println();
-    Serial.println(ESP.getFreeHeap());
-}
+//     valueRange.add("majorDimension", "COLUMNS");
+//     valueRange.set("values/[0]/[0]", update_rtc_unix());
+//     valueRange.set("values/[1]/[0]", date_now);
+//     valueRange.set("values/[2]/[0]", time_now);
+//     valueRange.set("values/[3]/[0]", value1);
+//     valueRange.set("values/[4]/[0]", value2);
+//     valueRange.set("values/[5]/[0]", value3);
+
+//     bool success = GSheet.values.append(&response /* returned response */, spreadsheetId /* spreadsheet Id to append */, "Sheet1!A1" /* range to append */, &valueRange /* data range to append */);
+//     if (success)
+//     {
+//         response.toString(Serial, true);
+//         valueRange.clear();
+//     }
+//     else
+//     {
+//         Serial.println(GSheet.errorReason());
+//     }
+//     Serial.println();
+//     Serial.println(ESP.getFreeHeap());
+// }
