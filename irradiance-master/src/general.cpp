@@ -441,7 +441,7 @@ void update_page_13()
 }
 
 void check_page() {
-    Serial.println("cek halaman");
+    Serial.println("CHECK PAGE NOW");
     if (currentPage == 0)
     {
         update_page_0();
@@ -522,8 +522,7 @@ void run_sensor_1()
         Serial.print("tProgress.txt=\"");
         Serial.print("Push data to cloud . . .\"");
         nextion_separator();
-        // upload_to_gsheet(value1, value2, value3);
-        // makeIFTTTRequest();
+        write_influx(value1, temp1, hum1, 1);
     }
 }
 
@@ -559,8 +558,7 @@ void run_sensor_2()
         Serial.print("tProgress.txt=\"");
         Serial.print("Push data to cloud . . .\"");
         nextion_separator();
-        // upload_to_gsheet(value1, value2, value3);
-        // makeIFTTTRequest();
+        write_influx(value2, temp2, hum2, 2);
     }
 }
 
@@ -595,8 +593,6 @@ void run_sensor_3()
         Serial.print("tProgress.txt=\"");
         Serial.print("Push data to cloud . . .\"");
         nextion_separator();
-        // upload_to_gsheet(value1, value2, value3);
-        // makeIFTTTRequest();
         write_influx(value3, temp3, hum3, 3);
     }
 }
@@ -762,10 +758,6 @@ void init_peripheral()
     }
     nextion_separator();
     delay(1000);
-
-
-
-
 
     init_rtc();
 }

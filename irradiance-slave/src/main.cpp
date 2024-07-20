@@ -6,19 +6,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ElegantOTA.h>
-
-// #include <InfluxDbClient.h>
-// #include <InfluxDbCloud.h>
-
-// #define DEVICE "Slave-3"
-// #define LOCATION "Lab"
-// #define INFLUXDB_URL "http://192.168.1.203:8086"
-// #define INFLUXDB_TOKEN "29znIj8QXqVeX8RdLrftrw10HKeyer428DYq7n5kaMvQK6ZBS9eIEcEhaDfjh1JQF2K0mmieQtOJA00UXUQHZw=="
-// #define INFLUXDB_ORG "power-hv"
-// #define INFLUXDB_BUCKET "irradiance"
-
-// InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
-// Point sensor("irradiance_logger");
+#define DEVICE 1
 
 int wifiState = 0;
 int ssidState = 0;
@@ -38,6 +26,7 @@ int Max;
 int Analog;
 unsigned long Sum;
 unsigned long Average;
+double realValue;
 
 // const int slaveNumber = 1;const char* testCode = "t1";const char* askCode = "a1";String msgOTA = "Hi! I am slave device 1 of irradiance meter system.";
 // const int slaveNumber = 2;const char* testCode = "t2";const char* askCode = "a2";String msgOTA = "Hi! I am slave device 2 of irradiance meter system.";
@@ -190,21 +179,6 @@ void initOTA()
     Serial.println("HTTP server (OTA) started");
 }
 
-
-// void init_influx()
-// {
-//     sensor.addTag("device", DEVICE);
-//     sensor.addTag("location", LOCATION);
-
-//     if (client.validateConnection()) {
-//         Serial.print("Connected to InfluxDB: ");
-//         Serial.println(client.getServerUrl());
-//     } else {
-//         Serial.print("InfluxDB connection failed: ");
-//         Serial.println(client.getLastErrorMessage());
-//     }
-// }
-
 void setup()
 {
     Serial.begin(9600);
@@ -241,7 +215,6 @@ void setup()
 
     initWifi();
     initOTA();
-    // init_influx();
 }
 
 void loop()
@@ -253,9 +226,9 @@ void loop()
 
     int busVoltage, busPower, shuntVoltage, shuntCurrent;
 
-    busVoltage = ina.readBusVoltage() * 1000000;
-    busPower = ina.readBusPower() * 1000000;
-    shuntVoltage = ina.readShuntVoltage() * 1000000;
+    // busVoltage = ina.readBusVoltage() * 1000000;
+    // busPower = ina.readBusPower() * 1000000;
+    // shuntVoltage = ina.readShuntVoltage() * 1000000;
     shuntCurrent = ina.readShuntCurrent() * 1000000;
 
     total = total - readings[readIndex];
@@ -268,38 +241,38 @@ void loop()
     }
 
     averageValue = total / numReadings;
-
     int x = averageValue;
 
-    double realValue = 0.00502*(pow(x,0.925));
+    x <= 0 ? realValue = 0 : realValue = 0.00502*(pow(x,0.925));
 
     digitalWrite(led,LOW);
     while(Serial2.available())
     {
+        delay(100);
         String a = Serial2.readString();
-        Serial.println(a);
-        
-        if (a == testCode)
+        Serial.print(a);
+
+        if (a.indexOf(testCode) > -1)
         {
             digitalWrite(led,HIGH);
             String msg = "rt" + String(slaveNumber) + ";" + String(1);
             Serial2.print(msg);
             Serial.println("masuk test");
         }
-        else if (a == askCode)
+        else if (a.indexOf(askCode) > -1)
         {
             digitalWrite(led,HIGH);
             String msg = "ra" + String(slaveNumber) + ";" + String(realValue) + ";" + String(temp.temperature) + ";" + String(humidity.relative_humidity);
             // String msg = "ra" + String(slaveNumber) + ";" + String(averageValue) + ";" + String(temp.temperature) + ";" + String(humidity.relative_humidity);
             // String msg = "ra" + String(slaveNumber) + ";" + String(Average) + ";" + String(temp.temperature) + ";" + String(humidity.relative_humidity);
             Serial2.print(msg);
-            Serial.println("masuk test");
+            Serial.println("masuk ask");
+            Serial.println(msg);
         }
+        delay(100);
     }
-    delay(10);
 
     unsigned long currentMillis = millis();
-    // if WiFi is down, try reconnecting every CHECK_WIFI_TIME seconds
     if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval))
     {
         Serial.print(millis());
@@ -307,29 +280,6 @@ void loop()
         Serial.println("Reconnecting to WiFi...");
         WiFi.disconnect();
         WiFi.reconnect();
-        previousMillis = currentMillis;
+        previousMillis = currentMillis;    
     }
-
-    String msg = "ra" + String(slaveNumber) + ";" + String(averageValue) + ";" + String(temp.temperature) + ";" + String(humidity.relative_humidity);
-    Serial.println(msg);
-
-    // if (currentMillis - previousMillis_db >= interval_db)
-    // {
-    //     sensor.clearFields();
-    //     sensor.addField("irradiance", realValue);
-    //     sensor.addField("temp", temp.temperature);
-    //     sensor.addField("hum", humidity.relative_humidity);
-
-    //     Serial.print("Writing: ");
-    //     Serial.println(client.pointToLineProtocol(sensor));
-  
-    //     if (!client.writePoint(sensor))
-    //     {
-    //         Serial.print("InfluxDB write failed: ");
-    //         Serial.println(client.getLastErrorMessage());
-    //     }
-    
-    //     previousMillis_db = currentMillis;
-    // }
-
 }

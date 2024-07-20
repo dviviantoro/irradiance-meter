@@ -8,7 +8,7 @@
 #include <rtc-ao.h>
 #include <sd-ao.h>
 
-unsigned long previousMillis_db = 0;
+unsigned long previousMillis_routine = 0;
 
 // Declare your Nextion objects - Example (page id = 0, component id = 1, component name = "b0") 
 // Page 0 = booting page
@@ -591,6 +591,18 @@ void powerCheck() {
   }
 }
 
+String time_now()
+{
+    String timeNow = update_rtc_dayOfTheWeek() + String(" - ");
+    timeNow += update_rtc_day() + String("/");
+    timeNow += update_rtc_month() + String("/");
+    timeNow += update_rtc_year() + String(" - ");
+    timeNow += update_rtc_hour() + ":";
+    timeNow += update_rtc_minute() + ":";
+    timeNow += update_rtc_second();
+    return timeNow;
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -624,25 +636,42 @@ void setup()
 void loop()
 {
     ElegantOTA.loop();
-
+    nexLoop(nex_listen_list);
+    
     unsigned long currentMillis = millis();
-    String timeNow = update_rtc_dayOfTheWeek() + String(" - ");
-    timeNow += update_rtc_day() + String("/");
-    timeNow += update_rtc_month() + String("/");
-    timeNow += update_rtc_year() + String(" - ");
-    timeNow += update_rtc_hour() + ":";
-    timeNow += update_rtc_minute() + ":";
-    timeNow += update_rtc_second();
-
-  
-    // if WiFi is down, try reconnecting every CHECK_WIFI_TIME seconds
-    if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval))
+    if (currentMillis - previousMillis_routine >= interval)
     {
-        Serial.print(millis());
-        Serial.println("Reconnecting to WiFi...");
-        WiFi.disconnect();
-        WiFi.reconnect();
-        previousMillis = currentMillis;
+        check_page();
+        
+        if (stateMaster == 1) {
+            nextion_separator();
+            Serial.print("dim=70");
+            nextion_separator();
+        }
+        else
+        {
+            nextion_separator();
+            Serial.print("dim=10");
+            nextion_separator();
+        }
+
+        nextion_separator();
+        Serial.print("tTimeNow.txt=\"");
+        Serial.print(time_now()); 
+        Serial.print("\""); 
+        nextion_separator();
+    
+        Serial.print("currentPage= ");
+        Serial.println(currentPage);
+
+        if (WiFi.status() != WL_CONNECTED)
+        {
+            Serial.print(millis());
+            Serial.println("Reconnecting to WiFi...");
+            WiFi.disconnect();
+            WiFi.reconnect();
+        }
+        previousMillis_routine = currentMillis;
     }
 
     if (time_1 == time_2)
@@ -659,39 +688,10 @@ void loop()
     }
 
     (update_rtc_hour().toInt() > (slcStart-1)) && (update_rtc_hour().toInt() < (slcEnd-1)) ? stateMaster = 1 : stateMaster = 0;
+    
     if (currentPage == 1)
     {
         collect_data();
-    }
-
-    nexLoop(nex_listen_list);
-
-
-
-    if (currentMillis - previousMillis_db >= interval)
-    {
-        check_page();
-        
-        if (stateMaster == 1) {
-            nextion_separator();
-            Serial.print("dim=70");
-            nextion_separator();
-        } else {
-            nextion_separator();
-            Serial.print("dim=10");
-            nextion_separator();
-        }
-
-        nextion_separator();
-        Serial.print("tTimeNow.txt=\"");
-        Serial.print(timeNow); 
-        Serial.print("\""); 
-        nextion_separator();
-    
-        Serial.print("currentPage= ");
-        Serial.println(currentPage);
-
-        previousMillis_db = currentMillis;
     }
 
 }
