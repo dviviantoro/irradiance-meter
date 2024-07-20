@@ -19,4 +19,5 @@ extern int ssidState;
 
 void initWifi();
 // void upload_to_gsheet(int value1, int value2, int value3);
-void write_influx();
+// void write_influx(int val_1, int val_2, int val_3);
+void write_influx(int irradiance, float temp, float humidity, int node);

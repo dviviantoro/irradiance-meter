@@ -502,7 +502,7 @@ void run_sensor_1()
         Serial.print("Requesting data to Device-1 . . .\""); 
         nextion_separator();
 
-        Serial2.print("a1");
+        Serial_Soft.print("a1");
         listen_modbus();
         
         if (sdCardState == 1)
@@ -540,7 +540,7 @@ void run_sensor_2()
         Serial.print("Requesting data to Device-2 . . .\""); 
         nextion_separator();
 
-        Serial2.print("a2");
+        Serial_Soft.print("a2");
         listen_modbus();
 
         if (sdCardState == 1) {
@@ -575,7 +575,7 @@ void run_sensor_3()
         Serial.print("Requesting data to Device-3 . . .\""); 
         nextion_separator();
 
-        Serial2.print("a3");
+        Serial_Soft.print("a3");
         listen_modbus();
 
         if (sdCardState == 1)
@@ -597,6 +597,7 @@ void run_sensor_3()
         nextion_separator();
         // upload_to_gsheet(value1, value2, value3);
         // makeIFTTTRequest();
+        write_influx(value3, temp3, hum3, 3);
     }
 }
 
@@ -681,35 +682,31 @@ void init_peripheral()
     }
     delay(2000);
 
+    int n_try = 5;
+    init_modbus();
+
     // check slave-1 connection
     nextion_separator();
     Serial.print("tLog7.txt=\"");
     Serial.print("Establishing modbus RS485 communication (Device-1) . . .\"");
     nextion_separator();
-    
-    Serial2.print("t1");
-    listen_modbus();
-    if (state1 == 0)
-    {
-        Serial2.print("t1");
-        listen_modbus();
-        if (state1 == 0)
-        {
-            Serial2.print("t1");
-            listen_modbus();
-        }
-    }
 
-    nextion_separator();
-    if (state1 == 1)
+    for (int i=0; i <= n_try; i++)
     {
-        Serial.print("tLog8.txt=\"");
-        Serial.print("[OK] Slave-1 communication established\"");
-    }
-    else
-    {
-        Serial.print("tLog8.txt=\"");
-        Serial.print("[ERROR] Slave-1 communication failed\"");
+        Serial_Soft.print("t1");
+        listen_modbus();
+        if (state1 == 1)
+        {
+            Serial.print("tLog8.txt=\"");
+            Serial.print("[OK] Slave-1 communication established\"");
+            break;
+        }
+        else
+        {
+            Serial.print("tLog8.txt=\"");
+            Serial.print("[ERROR] Slave-1 communication failed\"");
+        }
+        nextion_separator();
     }
     nextion_separator();
     delay(1000);
@@ -720,29 +717,22 @@ void init_peripheral()
     Serial.print("Establishing modbus RS485 communication (Device-2) . . .\"");
     nextion_separator();
 
-    Serial2.print("t2");
-    listen_modbus();
-    if (state2 == 0)
+    for (int i=0; i <= n_try; i++)
     {
-        Serial2.print("t2");
+        Serial_Soft.print("t2");
         listen_modbus();
-        if (state2 == 0)
+        if (state2 == 1)
         {
-            Serial2.print("t2");
-            listen_modbus();
+            Serial.print("tLog10.txt=\"");
+            Serial.print("[OK] Slave-2 communication established\"");
+            break;
         }
-    }
-
-    nextion_separator();
-    if (state2 == 1)
-    {
-        Serial.print("tLog10.txt=\"");
-        Serial.print("[OK] Slave-2 communication established\"");
-    }
-    else
-    {
-        Serial.print("tLog10.txt=\"");
-        Serial.print("[ERROR] Slave-2 communication failed\"");
+        else
+        {
+            Serial.print("tLog10.txt=\"");
+            Serial.print("[ERROR] Slave-2 communication failed\"");
+        }
+        nextion_separator();
     }
     nextion_separator();
     delay(1000);
@@ -753,30 +743,29 @@ void init_peripheral()
     Serial.print("Establishing modbus RS485 communication (Device-3) . . .\"");
     nextion_separator();
 
-    Serial2.print("t3");
-    listen_modbus();
-    if (state3 == 0)
+    for (int i=0; i <= n_try; i++)
     {
-        Serial2.print("t3");
+        Serial_Soft.print("t3");
         listen_modbus();
-        if (state3 == 0)
+        if (state3 == 1)
         {
-            Serial2.print("t3");
-            listen_modbus();
+            Serial.print("tLog12.txt=\"");
+            Serial.print("[OK] Slave-3 communication established\"");
+            break;
         }
-    }
-
-    nextion_separator();
-    if (state3 == 1)
-    {
-        Serial.print("tLog12.txt=\"");
-        Serial.print("[OK] Slave-3 communication established\"");
-    } else {
-        Serial.print("tLog12.txt=\"");
-        Serial.print("[ERROR] Slave-3 communication failed\"");
+        else
+        {
+            Serial.print("tLog12.txt=\"");
+            Serial.print("[ERROR] Slave-3 communication failed\"");
+        }
+        nextion_separator();
     }
     nextion_separator();
     delay(1000);
+
+
+
+
 
     init_rtc();
 }

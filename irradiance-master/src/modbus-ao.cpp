@@ -2,8 +2,13 @@
 #include <general.h>
 
 #define timeWait 3000
-#define RXD2 16
-#define TXD2 17
+// #define RXD2 16
+// #define TXD2 17
+#define RXD2 25
+#define TXD2 27
+#define BAUD_RATE 9600
+
+EspSoftwareSerial::UART Serial_Soft;
 
 int value1 = 0, value2 = 0, value3 = 0;
 float temp1 = 0, temp2 = 0, temp3 = 0;
@@ -11,8 +16,8 @@ float hum1 = 0, hum2 = 0, hum3 = 0;
 
 void init_modbus()
 {
-    Serial2.setTimeout(250);
-    Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+    Serial_Soft.setTimeout(250);
+    Serial_Soft.begin(BAUD_RATE, EspSoftwareSerial::SWSERIAL_8N1, RXD2, TXD2);
 }
 
 String getValue(String data, char separator, int index)
@@ -36,14 +41,14 @@ String getValue(String data, char separator, int index)
 void listen_modbus()
 {
     unsigned long startedWaiting = millis();
-    while(Serial2.available() <= 0 && millis() - startedWaiting <= timeWait)
+    while(Serial_Soft.available() <= 0 && millis() - startedWaiting <= timeWait)
     {
         nextion_separator();
         Serial.print("tProgress.txt=\"");
         Serial.print("Listening for slave response . . .\""); 
         nextion_separator();
 
-        String str = Serial2.readString();
+        String str = Serial_Soft.readString();
         Serial.println(str);
         String part01 = getValue(str,';',0);
         String part02 = getValue(str,';',1);

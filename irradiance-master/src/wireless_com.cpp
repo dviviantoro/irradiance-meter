@@ -6,10 +6,19 @@
 
 #define DEVICE "TTGO-T7-V15"
 #define LOCATION "SMP IT Wasilah Garut"
+
+// local db test
+/*
 #define INFLUXDB_URL "http://192.168.1.203:8086"
 #define INFLUXDB_TOKEN "29znIj8QXqVeX8RdLrftrw10HKeyer428DYq7n5kaMvQK6ZBS9eIEcEhaDfjh1JQF2K0mmieQtOJA00UXUQHZw=="
 #define INFLUXDB_ORG "power-hv"
 #define INFLUXDB_BUCKET "irradiance"
+*/
+#define INFLUXDB_URL "http://167.205.76.2:8086"
+#define INFLUXDB_USER "deny"
+#define INFLUXDB_PASSWORD "12345678"
+#define INFLUXDB_DB_NAME "irradiance_logger"
+
 
 #define BOTtoken "5917398507:AAFSCyGgvUH9LoeGT4Ch47d8yE3uMThglfw"  // your Bot Token (Get from Botfather)
 #define CHAT_ID "-898094308"    //group irradiance
@@ -26,7 +35,8 @@ unsigned long lastTimeBotRan;
 unsigned long ota_progress_millis = 0;
 String msgOTA = "Hi! I am master device! (new version)";
 
-InfluxDBClient client_db(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+// InfluxDBClient client_db(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+InfluxDBClient client_db(INFLUXDB_URL, INFLUXDB_DB_NAME);
 Point sensor("irradiance_logger");
 
 AsyncWebServer server_ota(80);
@@ -35,6 +45,7 @@ UniversalTelegramBot bot(BOTtoken, client_tele);
 
 void init_influxdb()
 {
+    client_db.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DB_NAME, INFLUXDB_USER, INFLUXDB_PASSWORD);
     sensor.addTag("device", DEVICE);
     sensor.addTag("location", LOCATION);
 
@@ -219,6 +230,7 @@ void initWifi()
         nextion_separator();
 
         // init_gsheet();
+        initOTA();
         init_influxdb();
     }
 }
@@ -390,70 +402,50 @@ void check_incoming_telegram()
     }
 }
 
-void write_influx()
+// void write_influx(int val_1, int val_2, int val_3)
+// {
+//     sensor.clearFields();
+
+//     // sensor.addField("irradiance-1", random(1000, 2000));
+//     // sensor.addField("irradiance-2", random(2000, 3000));
+//     // sensor.addField("irradiance-3", random(3000, 4000));
+//     sensor.addField("irradiance-1", val_1);
+//     sensor.addField("irradiance-2", val_2);
+//     sensor.addField("irradiance-3", val_3);
+  
+//     Serial.print("Writing: ");
+//     Serial.println(client_db.pointToLineProtocol(sensor));
+
+//     // Write point
+//     if (!client_db.writePoint(sensor))
+//     {
+//         Serial.print("InfluxDB write failed: ");
+//         Serial.println(client_db.getLastErrorMessage());
+//     }
+// }
+
+void write_influx(int irradiance, float temp, float humidity, int node)
 {
     sensor.clearFields();
+    String field_irr = "irr_" + String(node);
+    String field_temp = "temp_" + String(node);
+    String field_hum = "hum_" + String(node);
 
-    sensor.addField("irradiance-1", random(1000, 2000));
-    sensor.addField("irradiance-2", random(2000, 3000));
-    sensor.addField("irradiance-3", random(3000, 4000));
+    sensor.addField(field_irr, irradiance);
+    sensor.addField(field_temp, temp);
+    sensor.addField(field_hum, humidity);
   
-    Serial.print("Writing: ");
-    Serial.println(sensor.toLineProtocol());
+    Serial.print("\nWriting: ");
+    Serial.println(client_db.pointToLineProtocol(sensor));
 
     // Write point
-    if (!client_db.writePoint(sensor)) {
-      Serial.print("InfluxDB write failed: ");
-      Serial.println(client_db.getLastErrorMessage());
+    if (!client_db.writePoint(sensor))
+    {
+        Serial.print("\nInfluxDB write failed: ");
+        Serial.println(client_db.getLastErrorMessage());
     }
-  }
-
-// void tokenStatusCallback(TokenInfo info)
-// {
-//     if (info.status == token_status_error)
-//     {
-//         GSheet.printf("Token info: type = %s, status = %s\n", GSheet.getTokenType(info).c_str(), GSheet.getTokenStatus(info).c_str());
-//         GSheet.printf("Token error: %s\n", GSheet.getTokenError(info).c_str());
-//     }
-//     else
-//     {
-//         GSheet.printf("Token info: type = %s, status = %s\n", GSheet.getTokenType(info).c_str(), GSheet.getTokenStatus(info).c_str());
-//     }
-// }
-
-// void upload_to_gsheet(int value1, int value2, int value3)
-// {
-//     FirebaseJson response;
-//     Serial.println("\nAppend spreadsheet values...");
-//     Serial.println("----------------------------");
-//     FirebaseJson valueRange;
-
-//     String date_now = update_rtc_year() + "/";
-//     date_now += update_rtc_month() + "/";
-//     date_now += update_rtc_day();
-
-//     String time_now = update_rtc_hour() + ":";
-//     time_now += update_rtc_minute() + ":";
-//     time_now += update_rtc_second();
-
-//     valueRange.add("majorDimension", "COLUMNS");
-//     valueRange.set("values/[0]/[0]", update_rtc_unix());
-//     valueRange.set("values/[1]/[0]", date_now);
-//     valueRange.set("values/[2]/[0]", time_now);
-//     valueRange.set("values/[3]/[0]", value1);
-//     valueRange.set("values/[4]/[0]", value2);
-//     valueRange.set("values/[5]/[0]", value3);
-
-//     bool success = GSheet.values.append(&response /* returned response */, spreadsheetId /* spreadsheet Id to append */, "Sheet1!A1" /* range to append */, &valueRange /* data range to append */);
-//     if (success)
-//     {
-//         response.toString(Serial, true);
-//         valueRange.clear();
-//     }
-//     else
-//     {
-//         Serial.println(GSheet.errorReason());
-//     }
-//     Serial.println();
-//     Serial.println(ESP.getFreeHeap());
-// }
+    else
+    {
+        Serial.println("\nInfluxDB write sucess . . .");
+    }
+}
