@@ -402,28 +402,6 @@ void check_incoming_telegram()
     }
 }
 
-// void write_influx(int val_1, int val_2, int val_3)
-// {
-//     sensor.clearFields();
-
-//     // sensor.addField("irradiance-1", random(1000, 2000));
-//     // sensor.addField("irradiance-2", random(2000, 3000));
-//     // sensor.addField("irradiance-3", random(3000, 4000));
-//     sensor.addField("irradiance-1", val_1);
-//     sensor.addField("irradiance-2", val_2);
-//     sensor.addField("irradiance-3", val_3);
-  
-//     Serial.print("Writing: ");
-//     Serial.println(client_db.pointToLineProtocol(sensor));
-
-//     // Write point
-//     if (!client_db.writePoint(sensor))
-//     {
-//         Serial.print("InfluxDB write failed: ");
-//         Serial.println(client_db.getLastErrorMessage());
-//     }
-// }
-
 void write_influx(int irradiance, float temp, float humidity, int node)
 {
     sensor.clearFields();
